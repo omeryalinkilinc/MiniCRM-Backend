@@ -3,91 +3,89 @@ using Microsoft.EntityFrameworkCore;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
-using MiniCRM.Api.Services; // ← JwtService için
+using MiniCRM.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// CORS ayarı
+// ✅ Swagger servisleri
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+// ✅ CORS ayarı (frontend'den cookie gönderimi için şart)
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:3000")
+        policy.WithOrigins("http://localhost:3000") // 🔹 frontend adresi
               .AllowAnyHeader()
               .AllowAnyMethod()
-              .AllowCredentials();
-
+              .AllowCredentials(); // 🔥 cookie gönderimi için gerekli
     });
 });
 
+// ✅ Controller servisi
 builder.Services.AddControllers();
 
-// OpenAPI servisi
-builder.Services.AddOpenApi();
-
-
+// ✅ DbContext bağlantısı
 builder.Services.AddDbContext<MiniCRMDbContext>(options =>
-options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// JWT servis bağlantısı
+// ✅ JWT servis bağlantısı
 builder.Services.AddScoped<JwtService>();
 
+// ✅ JWT doğrulama ayarları
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
     options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
 })
-
 .AddJwtBearer(options =>
 {
+    // 🔥 Cookie'den gelen token'ı tanımak için
     options.Events = new JwtBearerEvents
     {
         OnMessageReceived = context =>
         {
-            if (context.Request.Cookies.ContainsKey("access_token"))
-            {
-                context.Token = context.Request.Cookies["access_token"];
-            }
+            var token = context.Request.Cookies["access_token"];
+            Console.WriteLine("Gelen token: " + token); // 🔍 debug log
+            context.Token = token;
             return Task.CompletedTask;
         }
     };
 
-    options.TokenValidationParameters = new TokenValidationParameters
-    {
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidateLifetime = true,
-        ValidateIssuerSigningKey = true,
-        ValidIssuer = "MiniCRM",
-        ValidAudience = "MiniCRMClient",
-        IssuerSigningKey = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
-    };
+// 🔐 Token doğrulama parametreleri
+options.TokenValidationParameters = new TokenValidationParameters
+{
+    ValidateIssuer = true,
+    ValidateAudience = true,
+    ValidateLifetime = true,
+    ValidateIssuerSigningKey = true,
+    ValidIssuer = "MiniCRM",
+    ValidAudience = "MiniCRMClient",
+    IssuerSigningKey = new SymmetricSecurityKey(
+        Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"] ?? throw new Exception("JWT key not found"))),
+
+    NameClaimType = "UserId" // ✅ Bu satır UserId claim'ini tanımak için şart
+};
 });
-
-
-
 
 var app = builder.Build();
 
-// Geliştirme ortamı için OpenAPI
+// ✅ Swagger middleware (sadece development'ta)
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
 
-// CORS middleware’i burada devreye girer
+// ✅ Middleware sırası (önemli!)
 app.UseRouting();
-app.UseCors("AllowFrontend");
-app.UseAuthentication();
-app.UseAuthorization();
+app.UseCors("AllowFrontend"); // 🔥 CORS policy aktif edilmeli
+app.UseAuthentication();      // 🔐 JWT doğrulama
+app.UseAuthorization();       // 🔐 Role bazlı erişim
+/*app.UseHttpsRedirection(); */   // 🌐 HTTPS yönlendirme
 
-
-app.UseHttpsRedirection();
-
-
-
-// Örnek endpoint (kalsın)
+// ✅ Örnek endpoint (test amaçlı)
 var summaries = new[]
 {
     "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
@@ -107,10 +105,13 @@ app.MapGet("/weatherforecast", () =>
 })
 .WithName("GetWeatherForecast");
 
-app.MapControllers(); // ← login endpoint için gerekli
+// ✅ Controller endpoint'leri
+app.MapControllers();
 
+// ✅ Uygulamayı başlat
 app.Run();
 
+// ✅ DTO tanımı (örnek)
 record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
 {
     public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);

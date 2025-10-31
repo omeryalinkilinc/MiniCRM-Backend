@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("MiniCRM.Api")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+372dd72fd664479aade2be64b4dd01bfefe8b184")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+a3243b5c5504e3220a4d127e12bf08d885de4885")]
 [assembly: System.Reflection.AssemblyProductAttribute("MiniCRM.Api")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MiniCRM.Api")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

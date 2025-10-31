@@ -45,12 +45,18 @@ namespace MiniCRM.Api.Controllers
                 HttpOnly = true,
                 Secure = false,
                 SameSite = SameSiteMode.Lax,
-                Domain = "localhost",
+              //  Domain = "localhost",
                 Path = "/",
                 Expires = DateTimeOffset.UtcNow.AddHours(1)
             });
 
-            return Ok(new { message = "Giriş başarılı", fullName = user.FullName });
+            // ✅ Role bilgisi eklendi
+            return Ok(new
+            {
+                message = "Giriş başarılı",
+                fullName = user.FullName,
+                role = user.Role
+            });
         }
 
         [Authorize]
@@ -76,24 +82,37 @@ namespace MiniCRM.Api.Controllers
         }
 
         [HttpPost("register")]
-        public async Task<IActionResult> Register([FromBody] LoginRequest request)
+        public async Task<IActionResult> Register([FromBody] RegisterCustomerRequest request)
         {
             var hashedPassword = BCrypt.Net.BCrypt.HashPassword(request.Password);
 
             var user = new User
             {
-                FullName = "Test Kullanıcı",
+                FullName = request.FullName,
                 Email = request.Email,
                 PasswordHash = hashedPassword,
-                Role = "Admin"
+                Role = "Customer"
             };
 
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
 
-            Console.WriteLine("Kayıt başarılı: " + user.Email);
+            var customer = new Customer
+            {
+                Name = request.FullName,
+                Company = request.Company,
+                CustomerType = request.CustomerType,
+                RegistrationDate = DateTime.Now,
+                TransactionCount = 0,
+                UserId = user.Id
+            };
+
+            _context.Customers.Add(customer);
+            await _context.SaveChangesAsync();
+
             return Ok(new { message = "Kayıt tamamlandı" });
         }
+
 
         [HttpGet("generate-hash")]
         public IActionResult GenerateHash()

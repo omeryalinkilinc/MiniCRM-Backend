@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\Ömer\\Desktop\\MınıCRM\\minicrm-backend\\MiniCRM.Api\\MiniCRM.Api.csproj": {}
+    "C:\\Users\\Ömer\\MınıCRM\\minicrm-backend\\MiniCRM.Api\\MiniCRM.Api.csproj": {}
   },
   "projects": {
-    "C:\\Users\\Ömer\\Desktop\\MınıCRM\\minicrm-backend\\MiniCRM.Api\\MiniCRM.Api.csproj": {
+    "C:\\Users\\Ömer\\MınıCRM\\minicrm-backend\\MiniCRM.Api\\MiniCRM.Api.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\Ömer\\Desktop\\MınıCRM\\minicrm-backend\\MiniCRM.Api\\MiniCRM.Api.csproj",
+        "projectUniqueName": "C:\\Users\\Ömer\\MınıCRM\\minicrm-backend\\MiniCRM.Api\\MiniCRM.Api.csproj",
         "projectName": "MiniCRM.Api",
-        "projectPath": "C:\\Users\\Ömer\\Desktop\\MınıCRM\\minicrm-backend\\MiniCRM.Api\\MiniCRM.Api.csproj",
+        "projectPath": "C:\\Users\\Ömer\\MınıCRM\\minicrm-backend\\MiniCRM.Api\\MiniCRM.Api.csproj",
         "packagesPath": "C:\\Users\\Ömer\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\Ömer\\Desktop\\MınıCRM\\minicrm-backend\\MiniCRM.Api\\obj\\",
+        "outputPath": "C:\\Users\\Ömer\\MınıCRM\\minicrm-backend\\MiniCRM.Api\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -72,6 +72,10 @@
               "suppressParent": "All",
               "target": "Package",
               "version": "[9.0.9, )"
+            },
+            "Swashbuckle.AspNetCore": {
+              "target": "Package",
+              "version": "[9.0.4, )"
             },
             "System.IdentityModel.Tokens.Jwt": {
               "target": "Package",
