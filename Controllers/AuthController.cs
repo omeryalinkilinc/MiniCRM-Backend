@@ -38,22 +38,41 @@ namespace MiniCRM.Api.Controllers
             if (!passwordCheck)
                 return Unauthorized("Giriş bilgileri hatalı");
 
-            var token = _jwtService.GenerateToken(user);
+            // Access token üret
+            var accessToken = _jwtService.GenerateToken(user);
 
-            Response.Cookies.Append("access_token", token, new CookieOptions
+            // Refresh token üret
+            var refreshToken = _jwtService.GenerateRefreshToken(user.Id);
+
+            // Veritabanına kaydet
+            _context.RefreshTokens.Add(refreshToken);
+            await _context.SaveChangesAsync();
+
+            // Refresh token'ı cookie olarak gönder
+            Response.Cookies.Append("refresh_token", refreshToken.Token, new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = false, // localhost için
+                SameSite = SameSiteMode.Strict,
+                Path = "/",
+                Expires = refreshToken.Expires
+            });
+
+            // Access token'ı cookie olarak da gönderebilirsin (isteğe bağlı)
+            Response.Cookies.Append("access_token", accessToken, new CookieOptions
             {
                 HttpOnly = true,
                 Secure = false,
                 SameSite = SameSiteMode.Lax,
-              //  Domain = "localhost",
                 Path = "/",
-                Expires = DateTimeOffset.UtcNow.AddHours(1)
+                Expires = DateTimeOffset.UtcNow.AddMinutes(15)
             });
 
-            // ✅ Role bilgisi eklendi
+            // Access token'ı JSON olarak da döndür
             return Ok(new
             {
                 message = "Giriş başarılı",
+                token = accessToken,
                 fullName = user.FullName,
                 role = user.Role
             });
@@ -113,7 +132,6 @@ namespace MiniCRM.Api.Controllers
             return Ok(new { message = "Kayıt tamamlandı" });
         }
 
-
         [HttpGet("generate-hash")]
         public IActionResult GenerateHash()
         {
@@ -123,12 +141,92 @@ namespace MiniCRM.Api.Controllers
         }
 
         [HttpPost("logout")]
-        public IActionResult Logout()
+        public async Task<IActionResult> Logout()
         {
+            var refreshTokenValue = Request.Cookies["refresh_token"];
+            if (!string.IsNullOrEmpty(refreshTokenValue))
+            {
+                var token = await _context.RefreshTokens.FirstOrDefaultAsync(t => t.Token == refreshTokenValue);
+                if (token != null)
+                {
+                    token.IsRevoked = true;
+                    await _context.SaveChangesAsync();
+                }
+            }
+
             Response.Cookies.Delete("access_token");
+            Response.Cookies.Delete("refresh_token");
+
             Console.WriteLine("Oturum sonlandırıldı");
             return Ok(new { message = "Çıkış başarılı" });
         }
+
+
+
+
+        [HttpPost("refresh")]
+        public async Task<IActionResult> Refresh()
+        {
+            var refreshTokenValue = Request.Cookies["refresh_token"];
+            if (string.IsNullOrEmpty(refreshTokenValue))
+                return Unauthorized("Refresh token bulunamadı");
+
+            var storedToken = await _context.RefreshTokens
+                .Include(rt => rt.User)
+                .FirstOrDefaultAsync(rt => rt.Token == refreshTokenValue);
+
+            if (storedToken == null || storedToken.Expires < DateTime.UtcNow || storedToken.IsRevoked)
+                return Unauthorized("Refresh token geçersiz");
+
+            var user = storedToken.User;
+            if (user == null)
+                return Unauthorized("Kullanıcı bulunamadı");
+
+            // Yeni access token üret
+            var newAccessToken = _jwtService.GenerateToken(user);
+
+            // Yeni refresh token üret
+            var newRefreshToken = _jwtService.GenerateRefreshToken(user.Id);
+
+            // Eski token'ı iptal et
+            storedToken.IsRevoked = true;
+
+            // Yeni token'ı veritabanına ekle
+            _context.RefreshTokens.Add(newRefreshToken);
+            await _context.SaveChangesAsync();
+
+            // Yeni refresh token'ı cookie olarak gönder
+            Response.Cookies.Append("refresh_token", newRefreshToken.Token, new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = false,
+                SameSite = SameSiteMode.Strict,
+                Path = "/",
+                Expires = newRefreshToken.Expires
+            });
+
+            // Yeni access token'ı cookie olarak da gönder
+            Response.Cookies.Append("access_token", newAccessToken, new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = false,
+                SameSite = SameSiteMode.Lax,
+                Path = "/",
+                Expires = DateTimeOffset.UtcNow.AddMinutes(15)
+            });
+
+            return Ok(new
+            {
+                message = "Token yenilendi",
+                token = newAccessToken,
+                fullName = user.FullName,
+                role = user.Role
+            });
+        }
+
+
+
+
     }
 
     public class LoginRequest

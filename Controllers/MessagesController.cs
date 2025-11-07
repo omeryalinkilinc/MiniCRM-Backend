@@ -20,21 +20,23 @@ namespace MiniCRM.Api.Controllers
         }
 
         // 1. Admin → mesaj gönder (tek kullanıcıya veya tüm kullanıcılara)
+        [Authorize(Roles = "Admin")]
         [HttpPost("send")]
-        public async Task<IActionResult> SendMessage([FromBody] Message message)
+        public async Task<IActionResult> SendMessage([FromBody] MessageRequest request)
         {
-            if (message == null || string.IsNullOrWhiteSpace(message.Content))
+            if (request == null || string.IsNullOrWhiteSpace(request.Content))
                 return BadRequest("Mesaj içeriği boş olamaz.");
 
-            if (message.ReceiverUserId == null)
+            var senderId = int.Parse(User.FindFirstValue("UserId"));
+
+            if (request.ReceiverUserId == null)
             {
-                // Toplu mesaj: tüm kullanıcılara kopya oluştur
                 var userIds = await _context.Users.Select(u => u.Id).ToListAsync();
                 var messages = userIds.Select(uid => new Message
                 {
-                    SenderUserId = message.SenderUserId,
+                    SenderUserId = senderId,
                     ReceiverUserId = uid,
-                    Content = message.Content,
+                    Content = request.Content,
                     SentAt = DateTime.UtcNow
                 }).ToList();
 
@@ -42,7 +44,14 @@ namespace MiniCRM.Api.Controllers
             }
             else
             {
-                // Bireysel mesaj
+                var message = new Message
+                {
+                    SenderUserId = senderId,
+                    ReceiverUserId = request.ReceiverUserId,
+                    Content = request.Content,
+                    SentAt = DateTime.UtcNow
+                };
+
                 _context.Messages.Add(message);
             }
 
@@ -50,33 +59,60 @@ namespace MiniCRM.Api.Controllers
             return Ok("Mesaj gönderildi.");
         }
 
+
         // 2. Kullanıcı → destek mesajı gönder
+        [Authorize(Roles = "Customer")]
         [HttpPost("support")]
-        public async Task<IActionResult> SendSupport([FromBody] Message message)
+        public async Task<IActionResult> SendSupport([FromBody] MessageRequest request)
         {
-            if (message == null || string.IsNullOrWhiteSpace(message.Content))
+            if (request == null || string.IsNullOrWhiteSpace(request.Content))
                 return BadRequest("Mesaj içeriği boş olamaz.");
 
-            // Admin'e gönderildiği varsayılır (örnek: admin ID = 1)
-            message.ReceiverUserId = 1;
-            message.SentAt = DateTime.UtcNow;
+            var senderId = int.Parse(User.FindFirstValue("UserId"));
+
+            // 🔥 Admin ID'yi veritabanından dinamik al
+            var adminUser = await _context.Users.FirstOrDefaultAsync(u => u.Role == "Admin");
+            if (adminUser == null)
+                return BadRequest("Sistemde tanımlı admin bulunamadı.");
+
+            var message = new Message
+            {
+                SenderUserId = senderId,
+                ReceiverUserId = adminUser.Id, 
+                Content = request.Content,
+                SentAt = DateTime.UtcNow
+            };
 
             _context.Messages.Add(message);
             await _context.SaveChangesAsync();
-            return Ok("Destek mesajı gönderildi.");
+            return Ok(new { message = "Destek mesajı gönderildi." });
+
         }
+
+
 
         // 3. Kullanıcı → gelen mesajları listele
         [HttpGet("inbox/{userId}")]
         public async Task<IActionResult> GetInbox(int userId)
         {
             var messages = await _context.Messages
-                .Where(m => m.ReceiverUserId == userId)
+                .Include(m => m.SenderUser)
+                .Where(m => m.ReceiverUserId == userId || m.SenderUserId == userId)
                 .OrderByDescending(m => m.SentAt)
+                .Select(m => new
+                {
+                    m.Id,
+                    m.Content,
+                    m.SentAt,
+                    SenderFullName = m.SenderUser.FullName,
+                    SenderEmail = m.SenderUser.Email,
+                    SenderUserId = m.SenderUser.Id
+                })
                 .ToListAsync();
 
             return Ok(messages);
         }
+
 
         // 4. Admin → gönderilen mesajları listele
         [HttpGet("sent/{adminId}")]
@@ -89,6 +125,37 @@ namespace MiniCRM.Api.Controllers
 
             return Ok(messages);
         }
+
+
+        [Authorize(Roles = "Admin")]
+        [HttpGet("inbox-with-user/{adminId}")]
+        public async Task<IActionResult> GetInboxWithUser(int adminId)
+        {
+            var messages = await _context.Messages
+                .Include(m => m.SenderUser)
+                .Include(m => m.ReceiverUser)
+                .Where(m => m.ReceiverUserId == adminId || m.SenderUserId == adminId)
+                .OrderByDescending(m => m.SentAt)
+                .Select(m => new
+                {
+                    m.Id,
+                    m.Content,
+                    m.SentAt,
+                    SenderFullName = m.SenderUser.FullName,
+                    SenderEmail = m.SenderUser.Email,
+                    SenderUserId = m.SenderUser.Id,
+                    ReceiverFullName = m.ReceiverUser.FullName,
+                    ReceiverEmail = m.ReceiverUser.Email,
+                    ReceiverUserId = m.ReceiverUser.Id
+                })
+                .ToListAsync();
+
+            return Ok(messages);
+        }
+
+
+
+
 
         // 5. Mesajı okundu olarak işaretle
         [HttpPatch("{id}/read")]

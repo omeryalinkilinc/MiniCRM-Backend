@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using MiniCRM.Api.Data;
 
@@ -11,9 +12,11 @@ using MiniCRM.Api.Data;
 namespace MiniCRM.Api.Migrations
 {
     [DbContext(typeof(MiniCRMDbContext))]
-    partial class MiniCRMDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251105143550_AddCreatedAtToRefreshToken")]
+    partial class AddCreatedAtToRefreshToken
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
