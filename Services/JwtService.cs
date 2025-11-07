@@ -1,5 +1,6 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using MiniCRM.Api.Models;
@@ -16,7 +17,7 @@ namespace MiniCRM.Api.Services
             Console.WriteLine("JWT Key: " + _key); // Debug amaçlý log
         }
 
-
+        // Access Token üretimi
         public string GenerateToken(User user)
         {
             var claims = new[]
@@ -34,11 +35,28 @@ namespace MiniCRM.Api.Services
                 issuer: "MiniCRM",
                 audience: "MiniCRMClient",
                 claims: claims,
-                expires: DateTime.Now.AddHours(1),
+                expires: DateTime.UtcNow.AddMinutes(15), // profesyonel süre
                 signingCredentials: creds
             );
 
             return new JwtSecurityTokenHandler().WriteToken(token);
+        }
+
+        // Refresh Token üretimi
+        public RefreshToken GenerateRefreshToken(int userId)
+        {
+            var randomBytes = new byte[64];
+            using var rng = RandomNumberGenerator.Create();
+            rng.GetBytes(randomBytes);
+
+            return new RefreshToken
+            {
+                Token = Convert.ToBase64String(randomBytes),
+                Expires = DateTime.UtcNow.AddDays(7),
+                IsRevoked = false,
+                UserId = userId,
+                CreatedAt = DateTime.UtcNow // opsiyonel alan varsa
+            };
         }
     }
 }
