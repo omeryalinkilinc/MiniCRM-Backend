@@ -9,5 +9,8 @@ namespace MiniCRM.Api.Models
         public string Role { get; set; }
         public string PhotoUrl { get; set; } = string.Empty;
 
+        public string? Phone { get; set; }
+        public string? CompanyName { get; set; }
+
     }
 }
