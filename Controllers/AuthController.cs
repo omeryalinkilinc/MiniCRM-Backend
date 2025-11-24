@@ -80,12 +80,16 @@ namespace MiniCRM.Api.Controllers
 
         [Authorize]
         [HttpGet("me")]
-        public IActionResult Me()
+        public async Task<IActionResult> Me()
         {
             var fullName = User.FindFirstValue(ClaimTypes.Name);
             var email = User.FindFirstValue(ClaimTypes.Email);
             var role = User.FindFirstValue(ClaimTypes.Role);
             var userId = User.FindFirstValue("UserId");
+
+            // Customer bilgilerini çek
+            var customer = await _context.Customers
+                .FirstOrDefaultAsync(c => c.UserId.ToString() == userId);
 
             return Ok(new
             {
@@ -95,10 +99,13 @@ namespace MiniCRM.Api.Controllers
                     Id = userId,
                     FullName = fullName,
                     Email = email,
-                    Role = role
+                    Role = role,
+                    Company = customer?.Company,        // Şirket adı
+                    CustomerType = customer?.CustomerType // Hesap tipi
                 }
             });
         }
+
 
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterCustomerRequest request)
